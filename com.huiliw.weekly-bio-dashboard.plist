@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.huiliw.weekly-bio-dashboard</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd /Users/huiliw/Desktop/literature_mining/weekly_bio_dashboard && source .venv/bin/activate && exec streamlit run app.py --server.headless true --server.port 8501</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/huiliw/Desktop/literature_mining/weekly_bio_dashboard/dashboard_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/huiliw/Desktop/literature_mining/weekly_bio_dashboard/dashboard_stderr.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/huiliw/Desktop/literature_mining/weekly_bio_dashboard</string>
+</dict>
+</plist>
