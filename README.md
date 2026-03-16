@@ -23,11 +23,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 3. Run the dashboard
-streamlit run app.py
+# 3. Set up auto-start (macOS)
+#    Edit the plist file to match your project path, then:
+cp com.huiliw.weekly-bio-dashboard.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.huiliw.weekly-bio-dashboard.plist
 ```
 
-Opens at http://localhost:8501
+Opens at http://localhost:8501 — and auto-starts every time you log in. No need to run anything manually after setup.
 
 ## Customize for YOUR Research
 
