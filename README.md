@@ -84,23 +84,13 @@ Get a weekly summary email with your top papers.
    - Copy to `~/Library/LaunchAgents/`
    - Load: `launchctl load ~/Library/LaunchAgents/com.yourname.weekly-bio-digest.plist`
 
-## Auto-Start on Login (macOS)
+## Managing the Auto-Start
 
-Instead of running `streamlit run app.py` manually each time, you can have the dashboard start automatically when you log in:
+- **Stop the dashboard**: `launchctl unload ~/Library/LaunchAgents/com.huiliw.weekly-bio-dashboard.plist`
+- **Restart it**: `launchctl load ~/Library/LaunchAgents/com.huiliw.weekly-bio-dashboard.plist`
+- **Run manually instead**: `./run.sh` (if you prefer not to use auto-start)
 
-1. Edit `com.huiliw.weekly-bio-dashboard.plist` — replace paths with your actual project location
-2. Copy to LaunchAgents:
-   ```bash
-   cp com.huiliw.weekly-bio-dashboard.plist ~/Library/LaunchAgents/
-   ```
-3. Load it:
-   ```bash
-   launchctl load ~/Library/LaunchAgents/com.huiliw.weekly-bio-dashboard.plist
-   ```
-
-Now just open **http://localhost:8501** anytime — the server is always running in the background. macOS will auto-restart it if it crashes.
-
-To stop: `launchctl unload ~/Library/LaunchAgents/com.huiliw.weekly-bio-dashboard.plist`
+The dashboard auto-restarts if it crashes (`KeepAlive` is enabled in the plist).
 
 ## Project Structure
 
