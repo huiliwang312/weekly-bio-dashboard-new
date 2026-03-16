@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd job: runs the weekly digest every Saturday at 9:00 AM.
+
+  SETUP:
+  1. Replace ALL paths below with your actual project directory.
+  2. Rename this file to com.<yourusername>.weekly-bio-digest.plist
+  3. Copy to ~/Library/LaunchAgents/
+  4. Load:  launchctl load ~/Library/LaunchAgents/com.<yourusername>.weekly-bio-digest.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.yourname.weekly-bio-digest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/path/to/weekly_bio_dashboard/run_digest.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>6</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/path/to/weekly_bio_dashboard/launchd_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/path/to/weekly_bio_dashboard/launchd_stderr.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/path/to/weekly_bio_dashboard</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

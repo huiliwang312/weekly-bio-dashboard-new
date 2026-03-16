@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude/
+
+# Secrets — NEVER commit this
+.env.digest
+
+# Runtime artifacts
+*.log
+digest_preview.html
+saved_papers.json
