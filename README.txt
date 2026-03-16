@@ -19,11 +19,17 @@ Features:
     pip install -r requirements.txt
 
 
-2) Run
-------
-    streamlit run app.py
+2) Set up auto-start (macOS)
+----------------------------
+    Edit com.huiliw.weekly-bio-dashboard.plist to match your project path, then:
 
-    Opens http://localhost:8501
+    cp com.huiliw.weekly-bio-dashboard.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.huiliw.weekly-bio-dashboard.plist
+
+    Opens http://localhost:8501 — auto-starts every time you log in.
+
+    To stop:  launchctl unload ~/Library/LaunchAgents/com.huiliw.weekly-bio-dashboard.plist
+    Manual:   ./run.sh
 
 
 3) Customize for YOUR research
