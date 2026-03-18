@@ -16,7 +16,7 @@ CROSSREF_MIN_INTERVAL_S = float(os.getenv("CROSSREF_MIN_INTERVAL_S", "0.15"))
 CROSSREF_MAX_RETRIES = int(os.getenv("CROSSREF_MAX_RETRIES", "3"))
 PREPRINT_MAX_RETRIES = int(os.getenv("PREPRINT_MAX_RETRIES", "3"))
 
-from config import JOURNAL_ISSN
+from config import JOURNAL_ISSN, FILTER_ABSTRACT_JOURNALS
 
 
 # ========================
@@ -57,54 +57,68 @@ def parse_crossref_date(it: dict) -> str:
 # ========================
 # Crossref fetcher
 # ========================
+def _crossref_query(flt: str, issn: str | None, journal: str, rows: int) -> tuple[list[dict], str]:
+    """Run a single Crossref query and return (items, status)."""
+    params = {
+        "filter": flt + (f",issn:{issn}" if issn else ""),
+        "rows": rows,
+        "sort": "published-online",
+        "order": "desc",
+        "select": "DOI,title,issued,published,published-online,container-title,URL,abstract",
+    }
+    if CROSSREF_MAILTO:
+        params["mailto"] = CROSSREF_MAILTO
+    if issn is None:
+        params["query.container-title"] = journal
+
+    time.sleep(CROSSREF_MIN_INTERVAL_S)
+
+    r = None
+    for attempt in range(CROSSREF_MAX_RETRIES):
+        try:
+            r = requests.get(CROSSREF_API, params=params, headers=HEADERS, timeout=30)
+            r.raise_for_status()
+            break
+        except requests.exceptions.RequestException:
+            time.sleep(0.6 * (2 ** attempt))
+
+    if r is None or getattr(r, "status_code", 500) >= 400:
+        status = f"error (HTTP {getattr(r, 'status_code', '?')})" if r else "error (no response)"
+        return [], status
+    try:
+        return r.json().get("message", {}).get("items", []), "ok"
+    except Exception:
+        return [], "error (JSON parse)"
+
+
 def crossref_fetch(journal: str, days: int, rows: int = 200) -> tuple[list[dict], str]:
     """
     Fetch recent journal articles from Crossref.
+    Tries online-pub-date first; falls back to created-date for journals
+    that don't populate online publication dates (e.g. Cell, Immunity).
     Returns (items_list, status_string).
     """
     end = datetime.now(timezone.utc).date()
     start = end - timedelta(days=days)
-    base_filter = f"from-online-pub-date:{start},until-online-pub-date:{end},type:journal-article"
 
     issns = JOURNAL_ISSN.get(journal, [])
     queries = issns if issns else [None]
+    abstract_filter = ",has-abstract:true" if journal in FILTER_ABSTRACT_JOURNALS else ""
 
     out: list[dict] = []
     status = "ok"
     for issn in queries:
-        flt = base_filter + (f",issn:{issn}" if issn else "")
-        params = {
-            "filter": flt,
-            "rows": rows,
-            "sort": "published-online",
-            "order": "desc",
-            "select": "DOI,title,issued,published,published-online,container-title,URL,abstract",
-        }
-        if CROSSREF_MAILTO:
-            params["mailto"] = CROSSREF_MAILTO
-        if issn is None:
-            params["query.container-title"] = journal
+        # Try online-pub-date first
+        flt = f"from-online-pub-date:{start},until-online-pub-date:{end},type:journal-article{abstract_filter}"
+        items, s = _crossref_query(flt, issn, journal, rows)
 
-        time.sleep(CROSSREF_MIN_INTERVAL_S)
+        # Fallback to created-date if online-pub-date returned nothing
+        if not items and s == "ok":
+            flt = f"from-created-date:{start},until-created-date:{end},type:journal-article{abstract_filter}"
+            items, s = _crossref_query(flt, issn, journal, rows)
 
-        r = None
-        for attempt in range(CROSSREF_MAX_RETRIES):
-            try:
-                r = requests.get(CROSSREF_API, params=params, headers=HEADERS, timeout=30)
-                r.raise_for_status()
-                break
-            except requests.exceptions.RequestException:
-                time.sleep(0.6 * (2 ** attempt))
-
-        if r is None or getattr(r, "status_code", 500) >= 400:
-            status = f"error (HTTP {getattr(r, 'status_code', '?')})" if r else "error (no response)"
-            items = []
-        else:
-            try:
-                items = r.json().get("message", {}).get("items", [])
-            except Exception:
-                status = "error (JSON parse)"
-                items = []
+        if s != "ok":
+            status = s
 
         for it in items:
             title = (it.get("title") or [""])[0]

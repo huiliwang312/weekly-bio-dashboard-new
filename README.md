@@ -5,6 +5,9 @@ A Streamlit dashboard that automatically fetches, scores, and curates recent pap
 ## Features
 
 - Fetches from **20+ journals** via Crossref API + bioRxiv/medRxiv API (no API key needed)
+- **Collection summary** — bar chart + table showing paper counts per journal, with warnings for failed fetches
+- **Smart date handling** — automatically falls back to `created-date` for publishers (e.g. Cell Press, AAAS) that don't set `online-pub-date` in Crossref
+- **Research-only filtering** — filters out news, editorials, and corrections from high-volume journals (Nature, Science, PNAS) using Crossref `has-abstract` filter
 - **Keyword-based scoring** with Tech vs Bio split
 - **Must-read rankings**, Focus sections, Trend detection
 - Full-text search, paper bookmarks, CSV export
@@ -38,6 +41,7 @@ Opens at http://localhost:8501 — and auto-starts every time you log in. No nee
 | What to edit | What it does |
 |---|---|
 | `JOURNALS` / `JOURNAL_ISSN` | Add or remove journals you want to track |
+| `FILTER_ABSTRACT_JOURNALS` | Journals where non-research items are filtered out via `has-abstract` |
 | `CORE_KEYWORDS` | Define keyword categories — each becomes a tag and feeds into scoring |
 | `TECH_KEYS` / `BIO_KEYS` | Assign categories into Tech vs Bio buckets for the Must-read split |
 | `FOCUS_AREA_1_KEYS` / `FOCUS_AREA_2_KEYS` | Keywords for your dedicated Focus sections (replace with your niche) |

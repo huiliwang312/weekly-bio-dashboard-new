@@ -1,33 +1,6 @@
-# ============================================================================
-#  Weekly Bio Dashboard — Configuration
-# ============================================================================
-#
-#  HOW TO CUSTOMIZE FOR YOUR RESEARCH
-#  -----------------------------------
-#  This file is the ONLY file you need to edit to tailor the dashboard to
-#  your own research interests. Everything else (app.py, scoring.py, etc.)
-#  reads from here automatically.
-#
-#  Step 1: Edit JOURNALS / JOURNAL_ISSN — pick the journals you follow.
-#  Step 2: Edit CORE_KEYWORDS — define keyword categories that matter to you.
-#          Each category becomes a "tag" on matched papers and feeds into scoring.
-#  Step 3: Edit TECH_KEYS / BIO_KEYS — assign your categories to Tech vs Bio
-#          buckets so the Must-read list can split them.
-#  Step 4: Edit the two FOCUS_*_KEYS lists — these power the dedicated Focus
-#          sections in the dashboard. Replace them with your own niche terms.
-#  Step 5: Edit TREND_LEXICON — groups of keywords for trend detection.
-#
-#  The examples below use "gene regulation / epigenetics" and
-#  "stem cells / regenerative medicine" as sample focus areas. Replace them
-#  with whatever fits your lab.
-# ============================================================================
-
-
 # ========================
 # Journal whitelist
 # ========================
-# Add or remove journals here. Each entry must match the journal name as it
-# appears in Crossref. Use JOURNAL_ISSN below to map ambiguous names to ISSNs.
 JOURNALS = [
     "Cell",
     "Nature",
@@ -51,11 +24,13 @@ JOURNALS = [
     "Nature Communications",
     "eLife",
 ]
+# Journals that publish many non-research items (news, editorials, corrections).
+# For these, Crossref queries add has-abstract:true to filter to research articles only.
+FILTER_ABSTRACT_JOURNALS = {"Nature", "Science", "PNAS"}
+
 INCLUDE_BIORXIV_DEFAULT = True
 INCLUDE_MEDRXIV_DEFAULT = False
 
-# ISSN look-up speeds up Crossref queries and avoids false matches.
-# Find ISSNs at https://portal.issn.org
 JOURNAL_ISSN = {
     "Cell": ['0092-8674', '1097-4172'],
     "Nature": ['0028-0836', '1476-4687'],
@@ -86,43 +61,101 @@ MUST_READ_N = 20
 # Cap how many papers from the same journal can appear in each Must-read list
 MAX_PER_JOURNAL_MUST_READ = 3
 
+# Tech vs Bio tag buckets (match keys in CORE_KEYWORDS)
+TECH_KEYS = ["proximity", "sequencing", "spatial", "proteomics", "spatial_interactome", "ai_ml"]
+BIO_KEYS  = ["lymph_node", "germinal_center", "immune", "cancer", "drug", "tls", "bcell_antibody"]
+
 
 # ========================
-# Tech vs Bio tag buckets
+# Focus: B cell antibody screening / discovery
 # ========================
-# These must match keys in CORE_KEYWORDS below.
-# Papers tagged with a TECH key go into the "Must-read Tech" list;
-# papers tagged with a BIO key go into "Must-read Bio".
-# A paper can appear in both if it hits keywords from both sides.
-TECH_KEYS = ["genomics", "sequencing", "imaging", "proteomics", "computational"]
-BIO_KEYS  = ["cell_biology", "development", "neuroscience", "cancer", "therapeutics"]
+FOCUS_BCELL_ANTIBODY_KEYS = [
+    # --- Core task: antibody discovery / screening ---
+    "antibody screening",
+    "antibody discovery",
+    "single-cell antibody",
+    "single cell antibody",
+    "monoclonal antibody discovery",
+    "neutralizing antibody",
 
+    # --- Antigen specificity & BCR ---
+    "antigen-specific b cell",
+    "antigen specific b cell",
+    "b cell receptor",
+    "bcr",
+    "bcr sequencing",
+    "vdj sequencing",
+    "vdj",
+    "paired heavy and light chain",
+    "heavy and light chain pairing",
+    "vh vl",
+    "vh/vl",
+
+    # --- Secretion capture / functional readout ---
+    "antibody secretion",
+    "secreted antibody",
+    "secretion capture",
+    "antibody capture",
+    "affinity capture",
+    "immune complex capture",
+
+    # --- Surface-tethered antigen / display concepts ---
+    "tethered antigen",
+    "cell-surface tether",
+    "cell surface tether",
+    "surface-tethered",
+    "surface tethered",
+    "membrane-tethered antigen",
+    "membrane tethered antigen",
+    "cell-surface display",
+    "cell surface display",
+    "antigen display",
+
+    # --- Readout via oligo / sequencing ---
+    "oligo-tagged antibody",
+    "oligo tagged antibody",
+    "dna-barcoded antibody",
+    "dna barcoded antibody",
+    "antibody-oligo conjugate",
+    "antibody oligo conjugate",
+    "dna-conjugated antibody",
+    "dna conjugated antibody",
+    "antibody-derived tag",
+    "antibody derived tag",
+    "adt",
+    "cite-seq",
+    "cite seq",
+    "feature barcode",
+
+    # --- Screening platforms (optional but useful) ---
+    "single-cell screening",
+    "single cell screening",
+    "microfluidic",
+    "droplet",
+    "nanowell",
+]
 
 # ========================
 # Core keyword lexicon
 # ========================
-# Each key becomes a tag. The list of strings are search terms (case-insensitive
-# substring match in title + abstract). Longer phrases are matched first to
-# avoid double-counting (e.g. "spatial transcriptomics" won't also count
-# "spatial"). Short acronyms (<=3 chars) use word-boundary matching.
-#
-# >>> CUSTOMIZE THESE to match your research interests <<<
 CORE_KEYWORDS = {
-    # --- Technology categories ---
-    "genomics": [
-        "genomics",
-        "genome-wide",
-        "genome wide",
-        "whole genome",
-        "exome",
-        "gwas",
-        "genome sequencing",
-        "chromatin",
-        "epigenome",
-        "methylome",
-        "chip-seq",
-        "cut&run",
-        "cut&tag",
+    # --- Technology ---
+    "proximity": [
+        "proximity",
+        "proximal",
+        "proximity ligation",
+        "proximity ligation assay",
+        "pla",
+        "proximity sequencing",
+        "prox-seq",
+        "protein interaction",
+        "protein-protein interaction",
+        "ppi",
+        "interactome",
+        "protein interactome",
+        "complexome",
+        "signaling complex",
+        "receptor complex",
     ],
     "sequencing": [
         "sequencing",
@@ -136,24 +169,24 @@ CORE_KEYWORDS = {
         "perturb-seq",
         "crispr screen",
         "guide rna",
-        "long-read",
-        "nanopore",
     ],
-    "imaging": [
-        "imaging",
-        "microscopy",
-        "fluorescence",
-        "confocal",
-        "light-sheet",
-        "super-resolution",
-        "live imaging",
+    "spatial": [
+        "spatial",
         "spatial transcriptomics",
         "spatial proteomics",
+        "visium",
+        "visium hd",
+        "slide-seq",
+        "slideseq",
+        "stereoseq",
+        "seq-scope",
         "merfish",
         "seqfish",
-        "visium",
+        "cosmx",
+        "xenium",
         "codex",
-        "expansion microscopy",
+        "imc",
+        "imaging mass cytometry",
     ],
     "proteomics": [
         "proteomics",
@@ -161,81 +194,80 @@ CORE_KEYWORDS = {
         "mass-spec",
         "lc-ms",
         "lc-ms/ms",
+        "ms-based",
         "phosphoproteomics",
         "protein profiling",
         "olink",
         "somalogic",
         "cytof",
     ],
-    "computational": [
-        "deep learning",
-        "machine learning",
-        "artificial intelligence",
-        "neural network",
-        "foundation model",
-        "large language model",
-        "transformer",
-        "graph neural network",
-        "cell segmentation",
-        "image analysis",
-        "computational",
-        "bioinformatics",
-        "algorithm",
-        "dimensionality reduction",
-        "clustering",
-        "trajectory inference",
-        "batch correction",
-        "data integration",
+
+    "spatial_interactome": [
+        "spatial interactome",
+        "spatial interactomics",
+        "spatial protein interaction",
+        "spatial protein-protein interaction",
+        "spatial ppi",
+        "in situ interactome",
+        "in situ protein interaction",
+        "proximity sequencing",
+        "prox-seq",
+        "sprox-seq",
+        "spatial prox-seq",
+        "spatial proximity sequencing",
+        "protein complex",
+        "protein complexes",
     ],
 
-    # --- Biology / application categories ---
-    "cell_biology": [
-        "cell cycle",
-        "cell division",
-        "mitosis",
-        "apoptosis",
-        "autophagy",
-        "cell migration",
-        "cell adhesion",
-        "cytoskeleton",
-        "organelle",
-        "membrane trafficking",
-        "endocytosis",
-        "exocytosis",
-        "signal transduction",
-        "cell polarity",
+    # --- Biology / application ---
+    "lymph_node": [
+        "lymph node",
+        "lymph nodes",
+        "lymph-node",
+        "lymphoid tissue",
+        "secondary lymphoid",
+        "secondary lymphoid organ",
+        "slo",
+        "paracortex",
+        "subcapsular sinus",
+        "medullary",
+        "lymphatic",
     ],
-    "development": [
-        "development",
-        "embryo",
-        "embryonic",
-        "morphogenesis",
-        "organogenesis",
-        "differentiation",
-        "stem cell",
-        "progenitor",
-        "lineage",
-        "fate decision",
-        "gastrulation",
-        "patterning",
-        "regeneration",
+    "germinal_center": [
+        "germinal center",
+        "germinal centre",
+        "germinal-centre",
+        "gc reaction",
+        "germinal reaction",
+        "light zone",
+        "dark zone",
+        "follicular",
+        "follicle",
+        "follicular dendritic",
+        "fDC",
+        "affinity maturation",
+        "somatic hypermutation",
+        "class switch",
+        "isotype switching",
     ],
-    "neuroscience": [
-        "neuron",
-        "neural",
-        "brain",
-        "cortex",
-        "hippocampus",
-        "synapse",
-        "synaptic",
-        "neurotransmitter",
-        "glia",
-        "astrocyte",
-        "microglia",
-        "axon",
-        "dendrite",
-        "neural circuit",
-        "electrophysiology",
+    "immune": [
+        "immune",
+        "immunology",
+        "immunity",
+        "t cell",
+        "t-cell",
+        "b cell",
+        "b-cell",
+        "tfh",
+        "t follicular helper",
+        "tfr",
+        "t follicular regulatory",
+        "macrophage",
+        "dendritic cell",
+        "antigen",
+        "cytokine",
+        "chemokine",
+        "inflammation",
     ],
     "cancer": [
         "cancer",
@@ -244,91 +276,86 @@ CORE_KEYWORDS = {
         "oncology",
         "neoplasm",
         "malignant",
+        "lymphoma",
         "metastasis",
-        "oncogene",
-        "tumor suppressor",
-        "tumor microenvironment",
     ],
-    "therapeutics": [
+    "drug": [
         "drug",
         "therapy",
         "therapeutic",
         "treatment",
         "inhibitor",
+        "target",
         "small molecule",
         "antibody",
+        "adc",
+        "checkpoint",
         "immunotherapy",
-        "clinical trial",
-        "pharmacology",
-        "drug resistance",
-        "combination therapy",
+    ],
+    "bcell_antibody": [
+        "antibody discovery",
+        "antibody screening",
+        "single-cell antibody",
+        "single cell antibody",
+        "antibody repertoire",
+        "b cell receptor",
+        "bcr",
+        "vdj",
+        "vdj sequencing",
+        "paired heavy and light chain",
+        "heavy and light chain",
+        "neutralizing antibody",
+    ],
+
+    "tls": [
+        "tertiary lymphoid",
+        "tertiary lymphoid structure",
+        "tls",
+        "lymphoid aggregate",
+    ],
+
+    "ai_ml": [
+        "deep learning",
+        "machine learning",
+        "artificial intelligence",
+        "neural network",
+        "convolutional neural network",
+        "graph neural network",
+        "transformer",
+        "foundation model",
+        "large language model",
+        "generative model",
+        "variational autoencoder",
+        "diffusion model",
+        "self-supervised",
+        "self supervised",
+        "contrastive learning",
+        "transfer learning",
+        "representation learning",
+        "cell segmentation",
+        "image segmentation",
+        "image analysis",
+        "computational pathology",
+        "digital pathology",
+        "spatial deconvolution",
+        "cell type annotation",
+        "cell type classification",
+        "automated annotation",
+        "clustering",
+        "dimensionality reduction",
+        "batch correction",
+        "data integration",
+        "multimodal integration",
+        "imputation",
+        "trajectory inference",
+        "gene regulatory network",
+        "cell-cell communication",
+        "cell cell communication",
     ],
 }
 
-
 # ========================
-# Focus 1: Gene regulation & epigenetics  (example — replace with your niche)
-# ========================
-# This list powers a dedicated Focus section in the dashboard.
-# Add terms specific to your first focus area.
-FOCUS_AREA_1_KEYS = [
-    "gene regulation",
-    "transcription factor",
-    "enhancer",
-    "promoter",
-    "chromatin remodeling",
-    "histone modification",
-    "histone acetylation",
-    "histone methylation",
-    "dna methylation",
-    "epigenetic",
-    "epigenetics",
-    "epigenome",
-    "non-coding rna",
-    "lncrna",
-    "mirna",
-    "chromatin accessibility",
-    "3d genome",
-    "topologically associating domain",
-    "tad",
-    "super-enhancer",
-    "gene silencing",
-    "polycomb",
-    "trithorax",
-]
-
-
-# ========================
-# Focus 2: Stem cells & regenerative medicine  (example — replace with your niche)
-# ========================
-FOCUS_AREA_2_KEYS = [
-    "stem cell",
-    "stem cells",
-    "pluripotent",
-    "ipsc",
-    "induced pluripotent",
-    "embryonic stem cell",
-    "adult stem cell",
-    "hematopoietic stem cell",
-    "mesenchymal stem cell",
-    "organoid",
-    "organoids",
-    "regeneration",
-    "regenerative medicine",
-    "tissue engineering",
-    "cell therapy",
-    "cell transplantation",
-    "reprogramming",
-    "self-renewal",
-    "niche",
-    "stem cell niche",
-    "differentiation",
-    "lineage tracing",
-]
-
-
-# ========================
-# Focus 3: AI/ML in biological data analysis  (broadly useful — keep or customize)
+# Focus: AI/ML in spatial omics, single-cell & imaging
 # ========================
 FOCUS_AI_KEYS = [
     "deep learning",
@@ -365,7 +392,6 @@ FOCUS_AI_KEYS = [
     "cell cell communication",
 ]
 
-
 # ========================
 # Big-deal hints (broad advances)
 # ========================
@@ -379,53 +405,54 @@ BIG_DEAL_HINTS = [
     "fundamental",
 ]
 
-
 # ========================
-# Trend lexicon
+# Trend lexicon (focused on LN / GC biology)
 # ========================
-# Each key is a trend name shown in the UI; its value is a list of keywords.
-# Papers matching many keywords in a group signal a "hot trend".
-#
-# >>> CUSTOMIZE THESE to reflect the trends you care about <<<
 TREND_LEXICON = {
-    "Gene regulation & chromatin": [
-        "gene regulation",
-        "transcription factor",
-        "enhancer",
-        "chromatin",
-        "epigenetic",
-        "histone",
+    "Lymph node spatial organization": [
+        "lymph node",
+        "secondary lymphoid",
+        "paracortex",
+        "subcapsular sinus",
+        "medullary",
+        "lymphatic",
     ],
-    "Single-cell & spatial omics": [
-        "single-cell",
-        "single cell",
-        "spatial transcriptomics",
-        "spatial proteomics",
-        "multiome",
-        "cell atlas",
+    "Germinal center dynamics": [
+        "germinal center",
+        "germinal centre",
+        "dark zone",
+        "light zone",
+        "gc reaction",
+        "affinity maturation",
+        "somatic hypermutation",
     ],
-    "Stem cells & organoids": [
-        "stem cell",
-        "organoid",
-        "regeneration",
-        "reprogramming",
-        "pluripotent",
+    "TLS & immune aggregates": [
+        "tertiary lymphoid",
+        "tertiary lymphoid structure",
+        "tls",
+        "lymphoid aggregate",
     ],
-    "Cancer biology & therapy": [
-        "cancer",
-        "tumor",
-        "metastasis",
-        "immunotherapy",
-        "tumor microenvironment",
-        "oncogene",
+    "B cell differentiation & fate": [
+        "b cell fate",
+        "plasma cell",
+        "memory b cell",
+        "class switch",
+        "isotype switching",
     ],
-    "Neuroscience & circuits": [
-        "neural circuit",
-        "synapse",
-        "brain",
-        "cortex",
-        "hippocampus",
-        "neuron",
+    "T-B cell interaction & help": [
+        "t follicular helper",
+        "tfh",
+        "t-b interaction",
+        "cd40",
+        "cd40l",
+        "il-21",
+    ],
+    "Immune niche & microenvironment": [
+        "immune niche",
+        "microenvironment",
+        "stromal cell",
+        "fibroblastic reticular cell",
+        "frc",
     ],
     "AI/ML in bio data analysis": [
         "deep learning",

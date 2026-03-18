@@ -1,4 +1,4 @@
-# Weekly Bio Dashboard v3 — modular, with search, abstracts, focus sections, fetch status
+# Weekly Bio Dashboard v3 — modular, with search, abstracts, AI/ML focus, medRxiv, fetch status
 import re
 import os
 import json
@@ -13,8 +13,7 @@ from config import (
     INCLUDE_BIORXIV_DEFAULT,
     INCLUDE_MEDRXIV_DEFAULT,
     CORE_KEYWORDS,
-    FOCUS_AREA_1_KEYS,
-    FOCUS_AREA_2_KEYS,
+    FOCUS_BCELL_ANTIBODY_KEYS,
     FOCUS_AI_KEYS,
     MUST_READ_N,
     MAX_PER_JOURNAL_MUST_READ,
@@ -105,8 +104,10 @@ def save_paper(key: str, row, category: str):
         "journal": str(row.get("journal", "")),
         "date": str(row.get("date", "")),
         "url": str(row.get("url", "")),
+        "abstract": str(row.get("abstract", "")),
         "category": category,
         "saved_at": datetime.now(timezone.utc).isoformat(),
+        "ideas_analyzed": False,
     }
     _flush_saved()
 
@@ -261,7 +262,7 @@ _scol1, _scol2 = st.columns([5, 1])
 with _scol1:
     search_query = st.text_input(
         "Search papers (title, abstract, journal, tag)",
-        placeholder="e.g. stem cell, CRISPR, deep learning, Nature Methods...",
+        placeholder="e.g. germinal center, MERFISH, deep learning, Nature Methods...",
     )
 with _scol2:
     _saved_data = load_saved_papers()
@@ -359,7 +360,7 @@ def refresh(
 
     df["is_tech"] = df["hits"].apply(lambda h: any((h.get(k, 0) or 0) > 0 for k in TECH_KEYS))
     df["is_bio"]  = df["hits"].apply(lambda h: any((h.get(k, 0) or 0) > 0 for k in BIO_KEYS))
-    df["is_ai"]   = df["hits"].apply(lambda h: (h.get("computational", 0) or 0) > 0)
+    df["is_ai"]   = df["hits"].apply(lambda h: (h.get("ai_ml", 0) or 0) > 0)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return df, fetch_status, timestamp
@@ -396,6 +397,35 @@ with st.expander("Fetch status per source", expanded=False):
         status_rows.append({"Source": src, "Papers": info["count"], "Status": emoji, "Detail": info["status"]})
     if status_rows:
         st.dataframe(pd.DataFrame(status_rows), use_container_width=True)
+
+
+# ========================
+# Collection Summary — papers per journal
+# ========================
+with st.expander("Collection summary — papers per journal", expanded=True):
+    if not df.empty:
+        # Use query_journal for journals (more consistent names), fall back to journal
+        journal_col = df["query_journal"].where(df["source"] == "Journal", df["journal"])
+        counts = journal_col.value_counts().reset_index()
+        counts.columns = ["Journal", "Papers"]
+        counts = counts.sort_values("Papers", ascending=True)
+
+        ccol1, ccol2 = st.columns([2, 1])
+        with ccol1:
+            st.bar_chart(counts.set_index("Journal")["Papers"], horizontal=True, height=max(250, len(counts) * 28))
+        with ccol2:
+            counts_display = counts.sort_values("Papers", ascending=False).reset_index(drop=True)
+            counts_display.index = counts_display.index + 1
+            st.dataframe(counts_display, use_container_width=True)
+            st.caption(f"**{len(counts)}** sources, **{counts['Papers'].sum()}** papers total")
+
+            # Flag journals with 0 papers fetched
+            fetched_journals = set(journal_col.dropna().unique())
+            missing = [j for j in JOURNALS if j not in fetched_journals]
+            if missing:
+                st.warning(f"No papers fetched for: {', '.join(missing)}")
+    else:
+        st.info("No papers fetched yet.")
 
 
 # ========================
@@ -445,73 +475,92 @@ st.divider()
 # ========================
 # Focus sections
 # ========================
-# To customize: change the section title, caption, and the keyword list
-# used in the filter function. See config.py for FOCUS_AREA_1_KEYS, etc.
 
-# --- Focus 1: Gene regulation & epigenetics (example) ---
-st.subheader("Focus: Gene regulation & epigenetics")
-st.caption("Customize this section in config.py by editing FOCUS_AREA_1_KEYS.")
+# --- LN/GC Focus ---
+st.subheader("Focus: Lymph node & Germinal center")
+focus_all = df[df["hits"].apply(lambda h: (h.get("lymph_node", 0) > 0) or (h.get("germinal_center", 0) > 0))].copy()
+focus_j = focus_all[focus_all["source"] == "Journal"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
+focus_p = focus_all[focus_all["source"] == "Preprint"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
 
-def is_focus_area_1(title: str, abstract: str) -> bool:
-    text = (title + " " + abstract).lower()
-    return any(k in text for k in FOCUS_AREA_1_KEYS)
-
-focus_1_all = df[df.apply(lambda r: is_focus_area_1(r.get("title", ""), r.get("abstract", "")), axis=1)].copy()
-focus_1_j = focus_1_all[focus_1_all["source"] == "Journal"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
-focus_1_p = focus_1_all[focus_1_all["source"] == "Preprint"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
-
-f1col1, f1col2 = st.columns(2)
-with f1col1:
-    st.markdown("### Focus 1 — Journals")
-    render_df(focus_1_j, show_abstract=show_abstracts, key_prefix="f1_j")
-    if not focus_1_j.empty:
-        csv, fn = to_csv_bytes(focus_1_j, "focus_1_journals.csv")
-        st.download_button("Download (Focus 1 Journals CSV)", csv, fn, "text/csv")
-with f1col2:
-    st.markdown("### Focus 1 — Preprints")
+fcol1, fcol2 = st.columns(2)
+with fcol1:
+    st.markdown("### Focus — Journals")
+    render_df(focus_j, show_abstract=show_abstracts, key_prefix="flngc_j")
+    if not focus_j.empty:
+        csv, fn = to_csv_bytes(focus_j, "ln_gc_focus_journals.csv")
+        st.download_button("Download (Focus Journals CSV)", csv, fn, "text/csv")
+with fcol2:
+    st.markdown("### Focus — Preprints")
     if include_biorxiv or include_medrxiv:
-        render_df(focus_1_p, show_abstract=show_abstracts, key_prefix="f1_p")
-        if not focus_1_p.empty:
-            csv, fn = to_csv_bytes(focus_1_p, "focus_1_preprints.csv")
-            st.download_button("Download (Focus 1 Preprints CSV)", csv, fn, "text/csv")
+        render_df(focus_p, show_abstract=show_abstracts, key_prefix="flngc_p")
+        if not focus_p.empty:
+            csv, fn = to_csv_bytes(focus_p, "ln_gc_focus_preprints.csv")
+            st.download_button("Download (Focus Preprints CSV)", csv, fn, "text/csv")
     else:
         st.info("Preprint sources are disabled.")
 
 st.divider()
 
-# --- Focus 2: Stem cells & regenerative medicine (example) ---
-st.subheader("Focus: Stem cells & regenerative medicine")
-st.caption("Customize this section in config.py by editing FOCUS_AREA_2_KEYS.")
+# --- B cell antibody Focus ---
+st.subheader("Focus: B cell antibody screening & discovery")
+st.caption("Functional single-cell antibody discovery: secretion capture, antigen specificity, and sequencing-compatible readouts.")
 
-def is_focus_area_2(title: str, abstract: str) -> bool:
+def is_bcell_antibody_focus(title: str, abstract: str) -> bool:
     text = (title + " " + abstract).lower()
-    return any(k in text for k in FOCUS_AREA_2_KEYS)
+    return any(k in text for k in FOCUS_BCELL_ANTIBODY_KEYS)
 
-focus_2_all = df[df.apply(lambda r: is_focus_area_2(r.get("title", ""), r.get("abstract", "")), axis=1)].copy()
-focus_2_j = focus_2_all[focus_2_all["source"] == "Journal"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
-focus_2_p = focus_2_all[focus_2_all["source"] == "Preprint"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
+focus_ab = df[df.apply(lambda r: is_bcell_antibody_focus(r.get("title", ""), r.get("abstract", "")), axis=1)].copy()
+focus_ab_j = focus_ab[focus_ab["source"] == "Journal"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
+focus_ab_p = focus_ab[focus_ab["source"] == "Preprint"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
 
-f2col1, f2col2 = st.columns(2)
-with f2col1:
-    st.markdown("### Focus 2 — Journals")
-    render_df(focus_2_j, show_abstract=show_abstracts, key_prefix="f2_j")
-    if not focus_2_j.empty:
-        csv, fn = to_csv_bytes(focus_2_j, "focus_2_journals.csv")
-        st.download_button("Download (Focus 2 Journals CSV)", csv, fn, "text/csv")
-with f2col2:
-    st.markdown("### Focus 2 — Preprints")
+abcol1, abcol2 = st.columns(2)
+with abcol1:
+    st.markdown("### Focus — Journals")
+    render_df(focus_ab_j, show_abstract=show_abstracts, key_prefix="fab_j")
+    if not focus_ab_j.empty:
+        csv, fn = to_csv_bytes(focus_ab_j, "bcell_antibody_focus_journals.csv")
+        st.download_button("Download (B cell Ab Journals CSV)", csv, fn, "text/csv")
+with abcol2:
+    st.markdown("### Focus — Preprints")
     if include_biorxiv or include_medrxiv:
-        render_df(focus_2_p, show_abstract=show_abstracts, key_prefix="f2_p")
-        if not focus_2_p.empty:
-            csv, fn = to_csv_bytes(focus_2_p, "focus_2_preprints.csv")
-            st.download_button("Download (Focus 2 Preprints CSV)", csv, fn, "text/csv")
+        render_df(focus_ab_p, show_abstract=show_abstracts, key_prefix="fab_p")
+        if not focus_ab_p.empty:
+            csv, fn = to_csv_bytes(focus_ab_p, "bcell_antibody_focus_preprints.csv")
+            st.download_button("Download (B cell Ab Preprints CSV)", csv, fn, "text/csv")
     else:
         st.info("Preprint sources are disabled.")
 
 st.divider()
 
-# --- Focus 3: AI/ML ---
-st.subheader("Focus: AI/ML in biological data analysis")
+# --- Spatial interactome Focus ---
+st.subheader("Focus: Spatial interactome")
+st.caption("Papers related to spatial protein interactomics / in situ PPIs.")
+
+focus_si = df[df["hits"].apply(lambda h: (h.get("spatial_interactome", 0) > 0))].copy()
+focus_si_j = focus_si[focus_si["source"] == "Journal"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
+focus_si_p = focus_si[focus_si["source"] == "Preprint"].copy().sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False])
+
+sicol1, sicol2 = st.columns(2)
+with sicol1:
+    st.markdown("### Focus — Journals")
+    render_df(focus_si_j, show_abstract=show_abstracts, key_prefix="fsi_j")
+    if not focus_si_j.empty:
+        csv, fn = to_csv_bytes(focus_si_j, "spatial_interactome_focus_journals.csv")
+        st.download_button("Download (Spatial interactome Journals CSV)", csv, fn, "text/csv")
+with sicol2:
+    st.markdown("### Focus — Preprints")
+    if include_biorxiv or include_medrxiv:
+        render_df(focus_si_p, show_abstract=show_abstracts, key_prefix="fsi_p")
+        if not focus_si_p.empty:
+            csv, fn = to_csv_bytes(focus_si_p, "spatial_interactome_focus_preprints.csv")
+            st.download_button("Download (Spatial interactome Preprints CSV)", csv, fn, "text/csv")
+    else:
+        st.info("Preprint sources are disabled.")
+
+st.divider()
+
+# --- AI/ML Focus ---
+st.subheader("Focus: AI/ML in spatial omics, single-cell & imaging")
 st.caption("Deep learning, foundation models, image analysis, and computational methods applied to bio data.")
 
 def is_ai_focus(title: str, abstract: str) -> bool:
@@ -524,13 +573,13 @@ focus_ai_p = focus_ai[focus_ai["source"] == "Preprint"].copy().sort_values(by=["
 
 aicol1, aicol2 = st.columns(2)
 with aicol1:
-    st.markdown("### Focus AI/ML — Journals")
+    st.markdown("### Focus — Journals")
     render_df(focus_ai_j, show_abstract=show_abstracts, key_prefix="fai_j")
     if not focus_ai_j.empty:
         csv, fn = to_csv_bytes(focus_ai_j, "ai_ml_focus_journals.csv")
         st.download_button("Download (AI/ML Journals CSV)", csv, fn, "text/csv")
 with aicol2:
-    st.markdown("### Focus AI/ML — Preprints")
+    st.markdown("### Focus — Preprints")
     if include_biorxiv or include_medrxiv:
         render_df(focus_ai_p, show_abstract=show_abstracts, key_prefix="fai_p")
         if not focus_ai_p.empty:
@@ -576,17 +625,18 @@ st.divider()
 
 
 # ========================
-# Tabs
+# Tabs (sequential naming: tab1..tab10)
 # ========================
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(
     [
         "Core — Journals",
         "Core — Preprints",
         "Big deals — Journals",
         "Big deals — Preprints",
         "By journal",
-        "Focus 1 (tab)",
-        "Focus 2 (tab)",
+        "LN/GC Focus (tab)",
+        "Spatial interactome (tab)",
+        "B cell Ab (tab)",
         "AI/ML (tab)",
         "All — Journals",
         f"Saved Papers ({_n_saved})",
@@ -666,44 +716,58 @@ with tab5:
         render_df(view_p, show_abstract=show_abstracts, key_prefix="t5bj_pre")
 
 with tab6:
-    st.subheader("Focus 1 (tab)")
-    fmode = st.radio("Focus 1 tab view:", ["All focus", "Journals only", "Preprints only"], horizontal=True, index=0)
+    st.subheader("LN/GC Focus (tab)")
+    fmode = st.radio("Focus tab view:", ["All focus", "Journals only", "Preprints only"], horizontal=True, index=0)
     if fmode == "Journals only":
-        render_df(focus_1_j, show_abstract=show_abstracts, key_prefix="t6f1_j")
+        render_df(focus_j, show_abstract=show_abstracts, key_prefix="t6lngc_j")
     elif fmode == "Preprints only":
-        render_df(focus_1_p, show_abstract=show_abstracts, key_prefix="t6f1_p")
+        render_df(focus_p, show_abstract=show_abstracts, key_prefix="t6lngc_p")
     else:
-        render_df(focus_1_all.sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False]), show_abstract=show_abstracts, key_prefix="t6f1_a")
+        render_df(focus_all.sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False]), show_abstract=show_abstracts, key_prefix="t6lngc_a")
 
 with tab7:
-    st.subheader("Focus 2 (tab)")
-    f2mode = st.radio(
-        "Focus 2 tab view:",
+    st.subheader("Spatial interactome (tab)")
+    simode = st.radio(
+        "Spatial interactome focus view:",
         ["All focus", "Journals only", "Preprints only"],
-        horizontal=True, index=0, key="f2_focus_mode",
+        horizontal=True, index=0, key="si_focus_mode",
     )
-    if f2mode == "Journals only":
-        render_df(focus_2_j, show_abstract=show_abstracts, key_prefix="t7f2_j")
-    elif f2mode == "Preprints only":
-        render_df(focus_2_p, show_abstract=show_abstracts, key_prefix="t7f2_p")
+    if simode == "Journals only":
+        render_df(focus_si_j, show_abstract=show_abstracts, key_prefix="t7si_j")
+    elif simode == "Preprints only":
+        render_df(focus_si_p, show_abstract=show_abstracts, key_prefix="t7si_p")
     else:
-        render_df(focus_2_all.sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False]), show_abstract=show_abstracts, key_prefix="t7f2_a")
+        render_df(focus_si.sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False]), show_abstract=show_abstracts, key_prefix="t7si_a")
 
 with tab8:
-    st.subheader("AI/ML in biological data analysis (tab)")
+    st.subheader("B cell antibody screening & discovery (tab)")
+    abmode = st.radio(
+        "B cell Ab focus view:",
+        ["All focus", "Journals only", "Preprints only"],
+        horizontal=True, index=0, key="ab_focus_mode",
+    )
+    if abmode == "Journals only":
+        render_df(focus_ab_j, show_abstract=show_abstracts, key_prefix="t8ab_j")
+    elif abmode == "Preprints only":
+        render_df(focus_ab_p, show_abstract=show_abstracts, key_prefix="t8ab_p")
+    else:
+        render_df(focus_ab.sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False]), show_abstract=show_abstracts, key_prefix="t8ab_a")
+
+with tab9:
+    st.subheader("AI/ML in spatial omics, single-cell & imaging (tab)")
     aimode = st.radio(
         "AI/ML focus view:",
         ["All focus", "Journals only", "Preprints only"],
         horizontal=True, index=0, key="ai_focus_mode",
     )
     if aimode == "Journals only":
-        render_df(focus_ai_j, show_abstract=show_abstracts, key_prefix="t8ai_j")
+        render_df(focus_ai_j, show_abstract=show_abstracts, key_prefix="t9ai_j")
     elif aimode == "Preprints only":
-        render_df(focus_ai_p, show_abstract=show_abstracts, key_prefix="t8ai_p")
+        render_df(focus_ai_p, show_abstract=show_abstracts, key_prefix="t9ai_p")
     else:
-        render_df(focus_ai.sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False]), show_abstract=show_abstracts, key_prefix="t8ai_a")
+        render_df(focus_ai.sort_values(by=["core", "score", "date_sort"], ascending=[False, False, False]), show_abstract=show_abstracts, key_prefix="t9ai_a")
 
-with tab9:
+with tab10:
     st.subheader(f"All — Journals (last {journal_days} days)")
     st.caption("All papers from your selected journals, regardless of relevance. Sorted by date.")
     allj = df_j.sort_values(by=["date_sort"], ascending=False).copy()
@@ -720,7 +784,7 @@ with tab9:
         safe_name = re.sub(r"[^A-Za-z0-9_\-]+", "_", j).strip("_") or "journal"
         st.download_button(f"Download {j} (CSV)", csv, f"all_{safe_name}_{journal_days}d.csv", "text/csv")
 
-with tab10:
+with tab11:
     st.subheader("Saved Papers")
     saved_data = load_saved_papers()
     saved_papers = saved_data.get("papers", {})
